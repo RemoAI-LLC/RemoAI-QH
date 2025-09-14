@@ -30,7 +30,7 @@
   },
   "build": {
     "appId": "com.remoai.chat",
-    "productName": "Remo AI Chat",
+    "productName": "Remo AI",
     "directories": {
       "output": "dist"
     },
