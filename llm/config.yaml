@@ -1,0 +1,5 @@
+api_key: "733JEY5-87VM3AA-QX41ZRW-27342BT"
+model_server_base_url: "http://localhost:3001/api/v1"
+workspace_slug: "remo"
+stream: true
+stream_timeout: 60
