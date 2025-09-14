@@ -568,8 +568,20 @@ if __name__ == '__main__':
         import sys
         if sys.platform == "win32":
             import codecs
-            sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
-            sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+            import io
+            # Only detach if not already detached
+            if hasattr(sys.stdout, 'detach'):
+                try:
+                    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
+                except (ValueError, OSError):
+                    # Already detached or not detachable
+                    pass
+            if hasattr(sys.stderr, 'detach'):
+                try:
+                    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+                except (ValueError, OSError):
+                    # Already detached or not detachable
+                    pass
         
         print("Starting Remo AI Unified API Server...")
         print("=" * 50)

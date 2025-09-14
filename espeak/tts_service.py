@@ -12,6 +12,12 @@ import logging
 from typing import Optional, Callable
 import platform
 
+# Import Windows SAPI fallback
+try:
+    from windows_tts import WindowsTTSService
+except ImportError:
+    WindowsTTSService = None
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -35,10 +41,28 @@ class TTSService:
         self.current_process = None
         self.supported_voices = []
         
+        # Initialize Windows SAPI fallback
+        self.windows_tts = None
+        
         # Check if eSpeak is installed
         self.espeak_available = self._check_espeak()
         if not self.espeak_available:
-            logger.warning("eSpeak not found. TTS functionality will be limited.")
+            logger.warning("eSpeak not found. Trying Windows SAPI fallback...")
+            # Try Windows SAPI as fallback
+            if platform.system() == "Windows" and WindowsTTSService:
+                try:
+                    self.windows_tts = WindowsTTSService()
+                    if self.windows_tts.available:
+                        logger.info("Using Windows SAPI as TTS fallback")
+                        self.espeak_available = True  # Mark as available for compatibility
+                    else:
+                        logger.warning("Windows SAPI also not available")
+                        self.windows_tts = None
+                except Exception as e:
+                    logger.warning(f"Failed to initialize Windows SAPI: {e}")
+                    self.windows_tts = None
+            else:
+                logger.warning("TTS functionality will be limited.")
         else:
             self._load_supported_voices()
     
@@ -103,12 +127,16 @@ class TTSService:
             True if speech started successfully, False otherwise
         """
         if not self.espeak_available:
-            logger.error("eSpeak not available")
+            logger.error("TTS not available")
             return False
         
         if not text.strip():
             logger.warning("Empty text provided for speech")
             return False
+        
+        # Use Windows SAPI if eSpeak is not available
+        if hasattr(self, 'windows_tts') and self.windows_tts:
+            return self.windows_tts.speak(text, blocking)
         
         # Stop any current speech
         self.stop_speaking()
@@ -163,6 +191,10 @@ class TTSService:
         Returns:
             True if speech started successfully, False otherwise
         """
+        # Use Windows SAPI if available
+        if hasattr(self, 'windows_tts') and self.windows_tts:
+            return self.windows_tts.speak_async(text, callback)
+        
         def speak_thread():
             success = self.speak(text, blocking=True)
             if callback:
@@ -214,6 +246,11 @@ class TTSService:
     
     def stop_speaking(self):
         """Stop current speech"""
+        # Use Windows SAPI if available
+        if hasattr(self, 'windows_tts') and self.windows_tts:
+            self.windows_tts.stop_speaking()
+            return
+        
         if self.current_process and self.is_speaking:
             try:
                 self.current_process.terminate()
@@ -268,6 +305,10 @@ class TTSService:
     
     def get_status(self) -> dict:
         """Get current TTS service status"""
+        # Use Windows SAPI status if available
+        if hasattr(self, 'windows_tts') and self.windows_tts:
+            return self.windows_tts.get_status()
+        
         return {
             'available': self.espeak_available,
             'speaking': self.is_speaking,
@@ -275,7 +316,8 @@ class TTSService:
             'speed': self.speed,
             'pitch': self.pitch,
             'volume': self.volume,
-            'supported_voices': len(self.supported_voices)
+            'supported_voices': len(self.supported_voices),
+            'type': 'eSpeak'
         }
     
     def cleanup(self):
