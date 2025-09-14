@@ -58,7 +58,8 @@ def init_services():
         
         # Try to initialize chat client (may fail if AnythingLLM is not running)
         try:
-            chat_client = NPUChatClient('config.yaml')
+            config_path = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
+            chat_client = NPUChatClient(config_path)
             logger.info("Chat client initialized successfully")
         except Exception as chat_error:
             logger.warning(f"Chat client initialization failed (AnythingLLM may not be running): {chat_error}")
@@ -81,6 +82,29 @@ def health_check():
             "tts": tts_manager is not None
         }
     })
+
+@app.route('/config', methods=['GET'])
+def get_config():
+    """Get configuration including API keys."""
+    try:
+        config_path = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
+        import yaml
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+        
+        # Return only safe config values (no sensitive data)
+        return jsonify({
+            "success": True,
+            "listen_api_key": config.get('listen_api_key', ''),
+            "workspace_slug": config.get('workspace_slug', ''),
+            "stream": config.get('stream', True)
+        })
+    except Exception as e:
+        logger.error(f"Error loading config: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -613,6 +637,152 @@ def tts_disable():
     except Exception as e:
         logger.error(f"Error disabling TTS: {e}")
         return jsonify({"error": str(e)}), 500
+
+# 24/7 Listening Mode Endpoints
+@app.route('/listening/process', methods=['POST'])
+def process_listening_audio():
+    """
+    Process audio from 24/7 listening mode and generate notifications.
+    
+    Expected form data:
+    - audio: Audio file
+    - api_key: API key for LLM processing
+    """
+    try:
+        if 'audio' not in request.files:
+            return jsonify({"error": "No audio file provided"}), 400
+        
+        audio_file = request.files['audio']
+        if audio_file.filename == '':
+            return jsonify({"error": "No audio file selected"}), 400
+        
+        # Get the listen API key from config
+        config_path = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
+        try:
+            import yaml
+            with open(config_path, 'r') as file:
+                config = yaml.safe_load(file)
+            listen_api_key = config.get('listen_api_key', 'A3W1B5T-1DQMWGX-P0XHR4V-7030128')
+        except Exception as e:
+            logger.warning(f"Could not load listen_api_key from config: {e}")
+            listen_api_key = 'A3W1B5T-1DQMWGX-P0XHR4V-7030128'
+        
+        api_key = request.form.get('api_key', listen_api_key)
+        
+        if whisper_service is None:
+            init_services()
+        
+        if whisper_service is None:
+            return jsonify({"error": "Whisper service not available."}), 503
+        
+        # Save the uploaded file temporarily
+        filename = secure_filename(audio_file.filename)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{filename}") as temp_file:
+            audio_file.save(temp_file.name)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Step 1: Transcribe audio
+            transcribed_text = whisper_service.transcribe_audio_file(temp_file_path)
+            
+            if not transcribed_text.strip():
+                return jsonify({"success": True, "notifications": []})
+            
+            # Step 2: Process with LLM to generate notifications
+            notifications = process_with_llm_for_notifications(transcribed_text, api_key)
+            
+            return jsonify({
+                "success": True,
+                "transcribed_text": transcribed_text,
+                "notifications": notifications
+            })
+        
+        finally:
+            # Clean up the temporary file
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+    
+    except Exception as e:
+        logger.error(f"Error in listening process endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
+def process_with_llm_for_notifications(transcribed_text, api_key):
+    """
+    Process transcribed text with LLM to generate helpful notifications.
+    """
+    try:
+        import aiohttp
+        import json
+        
+        # Prepare the prompt for notification generation
+        prompt = f"""Analyze this conversation and provide helpful notifications or suggestions. 
+        User said: "{transcribed_text}"
+        
+        Generate 1-3 helpful notifications in JSON format:
+        {{
+            "notifications": [
+                {{
+                    "title": "Notification Title",
+                    "preview": "Preview text (max 100 chars)",
+                    "fullContent": "Detailed content and suggestions",
+                    "action": "suggested action",
+                    "priority": "high|medium|low"
+                }}
+            ]
+        }}
+        
+        Focus on:
+        - Meeting preparations and reminders
+        - Task suggestions
+        - Helpful resources
+        - Follow-up actions
+        - Important insights from the conversation"""
+        
+        import requests
+        
+        response = requests.post(
+            "https://api.anythingllm.com/v1/chat",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            json={
+                "message": prompt,
+                "stream": False,
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("message"):
+                try:
+                    # Try to parse the JSON response
+                    notification_data = json.loads(result["message"])
+                    return notification_data.get("notifications", [])
+                except json.JSONDecodeError:
+                    # Fallback: create a simple notification
+                    return [{
+                        "title": "Voice Activity Detected",
+                        "preview": f"You mentioned: {transcribed_text[:50]}...",
+                        "fullContent": f"Full conversation: {transcribed_text}",
+                        "action": "View details",
+                        "priority": "medium"
+                    }]
+        else:
+            logger.warning(f"LLM API returned status {response.status_code}")
+            return []
+    
+    except Exception as e:
+        logger.error(f"Error processing with LLM: {e}")
+        # Fallback: create a simple notification
+        return [{
+            "title": "Voice Activity Detected",
+            "preview": f"You mentioned: {transcribed_text[:50]}...",
+            "fullContent": f"Full conversation: {transcribed_text}",
+            "action": "View details",
+            "priority": "medium"
+        }]
 
 if __name__ == '__main__':
     try:

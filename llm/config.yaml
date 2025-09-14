@@ -1,4 +1,5 @@
 api_key: "733JEY5-87VM3AA-QX41ZRW-27342BT"
+listen_api_key: "A3W1B5T-1DQMWGX-P0XHR4V-7030128"
 model_server_base_url: "http://localhost:3001/api/v1"
 workspace_slug: "remo"
 stream: true

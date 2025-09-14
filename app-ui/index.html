@@ -53,6 +53,15 @@
 
         <!-- Bottom Controls -->
         <div class="bottom-controls">
+          <button id="listening-mode-btn" class="control-btn listening-mode-btn" title="Enable 24/7 Listening Mode">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+            <div class="listening-indicator"></div>
+          </button>
           <button id="speaker-btn" class="control-btn speaker-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -67,6 +76,13 @@
               <line x1="8" y1="23" x2="16" y2="23"></line>
             </svg>
           </button>
+          <button id="notifications-btn" class="control-btn notifications-btn" title="Notifications">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <div class="notification-badge" id="notification-badge">0</div>
+          </button>
           <button id="close-btn" class="control-btn close-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -74,6 +90,31 @@
             </svg>
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Notifications Panel -->
+    <div id="notifications-panel" class="notifications-panel">
+      <div class="notifications-header">
+        <h3>Notifications</h3>
+        <button id="close-notifications-btn" class="close-notifications-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div id="notifications-list" class="notifications-list">
+        <!-- Notifications will be dynamically added here -->
+      </div>
+    </div>
+
+    <!-- Listening Mode Status -->
+    <div id="listening-status" class="listening-status">
+      <div class="listening-status-content">
+        <div class="listening-pulse"></div>
+        <span>Remo is listening...</span>
+        <button id="stop-listening-btn" class="stop-listening-btn">Stop</button>
       </div>
     </div>
 
