@@ -186,6 +186,43 @@ stream_timeout: 60`;
     }
 }
 
+async function installESpeak() {
+    logStep(4, 'Installing eSpeak for TTS functionality...');
+    
+    try {
+        const { spawn } = require('child_process');
+        const path = require('path');
+        
+        const espeakScript = path.join(__dirname, '..', 'espeak', 'install_espeak.py');
+        
+        return new Promise((resolve) => {
+            const installProcess = spawn(pythonExe, [espeakScript], {
+                cwd: path.join(__dirname, '..'),
+                stdio: 'inherit'
+            });
+            
+            installProcess.on('close', (code) => {
+                if (code === 0) {
+                    logSuccess('eSpeak installation completed');
+                } else {
+                    logWarning('eSpeak installation had issues, but continuing...');
+                }
+                resolve(true);
+            });
+            
+            installProcess.on('error', (error) => {
+                logWarning(`eSpeak installation error: ${error.message}`);
+                logInfo('TTS functionality may be limited without eSpeak');
+                resolve(true);
+            });
+        });
+    } catch (error) {
+        logWarning(`eSpeak installation failed: ${error.message}`);
+        logInfo('TTS functionality may be limited without eSpeak');
+        return true;
+    }
+}
+
 async function main() {
     log(`${colors.bright}${colors.magenta}Remo AI - Python Environment Setup${colors.reset}`);
     log(`${colors.cyan}================================================${colors.reset}`);
@@ -212,6 +249,9 @@ async function main() {
     
     // Create config files
     await createConfigFiles();
+    
+    // Install eSpeak
+    await installESpeak();
     
     logSuccess('Python environment setup completed successfully!');
     log(`${colors.bright}${colors.green}You can now run 'npm start' to launch Remo AI!${colors.reset}`);

@@ -20,6 +20,12 @@ from chat_client import NPUChatClient
 from whisper_service import WhisperService
 from audio_utils import convert_audio_to_wav, convert_wav_to_base64
 
+# Import TTS functionality
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'espeak'))
+from persona_tts import PersonaTTSManager
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,16 +36,25 @@ CORS(app)  # Enable CORS for frontend integration
 # Initialize services
 chat_client = None
 whisper_service = None
+tts_manager = None
 
 def init_services():
-    """Initialize both chat and whisper services."""
-    global chat_client, whisper_service
+    """Initialize chat, whisper, and TTS services."""
+    global chat_client, whisper_service, tts_manager
     
     try:
         # Initialize whisper service first (doesn't require external server)
         whisper_service = WhisperService("base")
         whisper_service.load_model()
         logger.info("Whisper service initialized successfully")
+        
+        # Initialize TTS service
+        try:
+            tts_manager = PersonaTTSManager()
+            logger.info("TTS service initialized successfully")
+        except Exception as tts_error:
+            logger.warning(f"TTS service initialization failed: {tts_error}")
+            tts_manager = None
         
         # Try to initialize chat client (may fail if AnythingLLM is not running)
         try:
@@ -53,6 +68,7 @@ def init_services():
         logger.error(f"Failed to initialize services: {e}")
         # Don't raise the exception, allow the server to start with limited functionality
         whisper_service = None
+        tts_manager = None
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -61,7 +77,8 @@ def health_check():
         "status": "healthy", 
         "services": {
             "chat": chat_client is not None,
-            "whisper": whisper_service is not None
+            "whisper": whisper_service is not None,
+            "tts": tts_manager is not None
         }
     })
 
@@ -95,6 +112,15 @@ def chat():
                 response_chunks.append(chunk)
             
             full_response = ''.join(response_chunks)
+            
+            # Speak the response if TTS is available
+            if tts_manager is not None:
+                try:
+                    current_persona = chat_client.get_current_persona() if chat_client else "remo"
+                    tts_manager.speak_persona_response_async(full_response, current_persona)
+                except Exception as tts_error:
+                    logger.warning(f"TTS error: {tts_error}")
+            
             return jsonify({
                 "success": True,
                 "message": full_response,
@@ -103,6 +129,15 @@ def chat():
         else:
             # Get complete response
             response = chat_client.send_message(message, False)
+            
+            # Speak the response if TTS is available
+            if tts_manager is not None:
+                try:
+                    current_persona = chat_client.get_current_persona() if chat_client else "remo"
+                    tts_manager.speak_persona_response_async(response, current_persona)
+                except Exception as tts_error:
+                    logger.warning(f"TTS error: {tts_error}")
+            
             return jsonify({
                 "success": True,
                 "message": response,
@@ -359,6 +394,174 @@ def get_current_persona():
         logger.error(f"Error getting current persona: {e}")
         return jsonify({"error": str(e)}), 500
 
+# TTS Endpoints
+@app.route('/tts/speak', methods=['POST'])
+def tts_speak():
+    """Speak text using current or specified persona"""
+    try:
+        if tts_manager is None:
+            return jsonify({"error": "TTS service not available"}), 503
+        
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({"error": "No text provided"}), 400
+        
+        text = data['text']
+        persona = data.get('persona')
+        blocking = data.get('blocking', False)
+        
+        if not text.strip():
+            return jsonify({"error": "Empty text provided"}), 400
+        
+        success = tts_manager.speak_persona_response(text, persona, blocking)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Speech started successfully",
+                "persona": persona or tts_manager.current_persona,
+                "blocking": blocking
+            })
+        else:
+            return jsonify({"error": "Failed to start speech"}), 500
+    
+    except Exception as e:
+        logger.error(f"Error in TTS speak endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/tts/speak-async', methods=['POST'])
+def tts_speak_async():
+    """Speak text asynchronously"""
+    try:
+        if tts_manager is None:
+            return jsonify({"error": "TTS service not available"}), 503
+        
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({"error": "No text provided"}), 400
+        
+        text = data['text']
+        persona = data.get('persona')
+        
+        if not text.strip():
+            return jsonify({"error": "Empty text provided"}), 400
+        
+        success = tts_manager.speak_persona_response_async(text, persona)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Speech started asynchronously",
+                "persona": persona or tts_manager.current_persona
+            })
+        else:
+            return jsonify({"error": "Failed to start speech"}), 500
+    
+    except Exception as e:
+        logger.error(f"Error in TTS speak-async endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/tts/stop', methods=['POST'])
+def tts_stop():
+    """Stop current speech"""
+    try:
+        if tts_manager is None:
+            return jsonify({"error": "TTS service not available"}), 503
+        
+        tts_manager.stop_speaking()
+        return jsonify({
+            "success": True,
+            "message": "Speech stopped"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error stopping TTS: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/tts/set-persona', methods=['POST'])
+def tts_set_persona():
+    """Set TTS voice for a specific persona"""
+    try:
+        if tts_manager is None:
+            return jsonify({"error": "TTS service not available"}), 503
+        
+        data = request.get_json()
+        if not data or 'persona' not in data:
+            return jsonify({"error": "No persona provided"}), 400
+        
+        persona = data['persona']
+        success = tts_manager.set_persona(persona)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"TTS voice set for persona '{persona}'",
+                "persona": persona
+            })
+        else:
+            return jsonify({"error": f"Unknown persona: {persona}"}), 400
+    
+    except Exception as e:
+        logger.error(f"Error setting TTS persona: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/tts/status', methods=['GET'])
+def tts_status():
+    """Get TTS service status"""
+    try:
+        if tts_manager is None:
+            return jsonify({
+                "success": True,
+                "status": {
+                    "available": False,
+                    "message": "TTS service not initialized"
+                }
+            })
+        
+        status = tts_manager.get_status()
+        return jsonify({
+            "success": True,
+            "status": status
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting TTS status: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/tts/enable', methods=['POST'])
+def tts_enable():
+    """Enable TTS functionality"""
+    try:
+        if tts_manager is None:
+            return jsonify({"error": "TTS service not available"}), 503
+        
+        tts_manager.enable()
+        return jsonify({
+            "success": True,
+            "message": "TTS enabled"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error enabling TTS: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/tts/disable', methods=['POST'])
+def tts_disable():
+    """Disable TTS functionality"""
+    try:
+        if tts_manager is None:
+            return jsonify({"error": "TTS service not available"}), 503
+        
+        tts_manager.disable()
+        return jsonify({
+            "success": True,
+            "message": "TTS disabled"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error disabling TTS: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     try:
         # Handle Windows encoding issues
@@ -385,6 +588,10 @@ if __name__ == '__main__':
         print("   - GET  /personas - Get available personas")
         print("   - POST /personas/<name> - Set persona")
         print("   - GET  /personas/current - Get current persona")
+        print("   - POST /tts/speak - Speak text with TTS")
+        print("   - POST /tts/speak-async - Speak text asynchronously")
+        print("   - POST /tts/stop - Stop current speech")
+        print("   - GET  /tts/status - Get TTS service status")
         print("=" * 50)
         
         logger.info("Starting unified API server on port 8000")

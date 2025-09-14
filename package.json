@@ -25,7 +25,9 @@
     "clean:backend": "cd llm && rmdir /s /q npu-chatbot-env 2>nul || rm -rf npu-chatbot-env",
     "reset": "npm run clean && npm install",
     "persona:test": "cd llm && python test_personas.py",
-    "persona:demo": "start app-ui/persona-demo.html"
+    "persona:demo": "start app-ui/persona-demo.html",
+    "tts:test": "python test_tts_integration.py",
+    "tts:install": "python espeak/install_espeak.py"
   },
   "keywords": [
     "ai",
