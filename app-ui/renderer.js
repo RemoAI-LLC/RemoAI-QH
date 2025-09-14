@@ -20,9 +20,9 @@ class RemoAIChat {
 
   initializeElements() {
     // Main elements
-    this.chatMessages = document.getElementById("chatMessages");
-    this.messageInput = document.getElementById("messageInput");
-    this.sendButton = document.getElementById("sendButton");
+    this.chatMessages = document.getElementById("conversation-messages");
+    this.messageInput = document.getElementById("text-input");
+    this.sendButton = document.getElementById("send-btn");
     this.charCount = document.getElementById("charCount");
     this.statusDot = document.getElementById("statusDot");
     this.statusText = document.getElementById("statusText");
@@ -44,39 +44,71 @@ class RemoAIChat {
     this.streamingEnabledInput = document.getElementById("streamingEnabled");
 
     // Voice input elements
-    this.voiceBtn = document.getElementById("voiceBtn");
-    this.ttsBtn = document.getElementById("ttsBtn");
+    this.voiceBtn = document.getElementById("mic-btn");
+    this.ttsBtn = document.getElementById("speaker-btn");
   }
 
   setupEventListeners() {
     // Message input
-    this.messageInput.addEventListener("input", () => this.handleInputChange());
-    this.messageInput.addEventListener("keydown", (e) => this.handleKeyDown(e));
-    this.sendButton.addEventListener("click", () => this.sendMessage());
+    if (this.messageInput) {
+      this.messageInput.addEventListener("input", () => this.handleInputChange());
+      this.messageInput.addEventListener("keydown", (e) => this.handleKeyDown(e));
+    }
+    
+    if (this.sendButton) {
+      this.sendButton.addEventListener("click", () => this.sendMessage());
+    }
 
-    // Settings modal
-    this.settingsBtn.addEventListener("click", () => this.openSettings());
-    this.closeSettingsBtn.addEventListener("click", () => this.closeSettings());
-    this.cancelSettingsBtn.addEventListener("click", () =>
-      this.closeSettings()
-    );
-    this.saveSettingsBtn.addEventListener("click", () => this.saveSettings());
+    // Settings modal (only if elements exist)
+    if (this.settingsBtn) {
+      this.settingsBtn.addEventListener("click", () => this.openSettings());
+    }
+    if (this.closeSettingsBtn) {
+      this.closeSettingsBtn.addEventListener("click", () => this.closeSettings());
+    }
+    if (this.cancelSettingsBtn) {
+      this.cancelSettingsBtn.addEventListener("click", () => this.closeSettings());
+    }
+    if (this.saveSettingsBtn) {
+      this.saveSettingsBtn.addEventListener("click", () => this.saveSettings());
+    }
 
     // Clear chat
-    this.clearBtn.addEventListener("click", () => this.clearChat());
+    if (this.clearBtn) {
+      this.clearBtn.addEventListener("click", () => this.clearChat());
+    }
 
     // Voice input
-    this.voiceBtn.addEventListener("click", () => this.toggleVoiceRecording());
+    if (this.voiceBtn) {
+      this.voiceBtn.addEventListener("click", () => this.toggleVoiceRecording());
+    }
     
     // TTS toggle
-    this.ttsBtn.addEventListener("click", () => this.toggleTTS());
+    if (this.ttsBtn) {
+      this.ttsBtn.addEventListener("click", () => this.toggleTTS());
+    }
 
     // Modal backdrop click
-    this.settingsModal.addEventListener("click", (e) => {
-      if (e.target === this.settingsModal) {
-        this.closeSettings();
-      }
-    });
+    if (this.settingsModal) {
+      this.settingsModal.addEventListener("click", (e) => {
+        if (e.target === this.settingsModal) {
+          this.closeSettings();
+        }
+      });
+    }
+
+    // Close button
+    const closeBtn = document.getElementById("close-btn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        // Close the application
+        if (window.electronAPI) {
+          window.electronAPI.closeApp();
+        } else {
+          window.close();
+        }
+      });
+    }
 
     // IPC listeners removed - using unified API instead
   }
@@ -124,21 +156,27 @@ class RemoAIChat {
 
   handleInputChange() {
     const value = this.messageInput.value.trim();
-    this.sendButton.disabled = !value || this.isStreaming;
+    if (this.sendButton) {
+      this.sendButton.disabled = !value || this.isStreaming;
+    }
 
-    // Update character count
-    this.charCount.textContent = this.messageInput.value.length;
+    // Update character count if element exists
+    if (this.charCount) {
+      this.charCount.textContent = this.messageInput.value.length;
+    }
 
-    // Auto-resize textarea
-    this.messageInput.style.height = "auto";
-    this.messageInput.style.height =
-      Math.min(this.messageInput.scrollHeight, 120) + "px";
+    // Auto-resize textarea (if it's a textarea)
+    if (this.messageInput.tagName === 'TEXTAREA') {
+      this.messageInput.style.height = "auto";
+      this.messageInput.style.height =
+        Math.min(this.messageInput.scrollHeight, 120) + "px";
+    }
   }
 
   handleKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!this.sendButton.disabled) {
+      if (this.sendButton && !this.sendButton.disabled) {
         this.sendMessage();
       }
     }
@@ -157,11 +195,8 @@ class RemoAIChat {
     this.showTypingIndicator();
 
     try {
-      if (this.streamingEnabledInput.checked) {
-        await this.sendStreamingMessage(message);
-      } else {
-        await this.sendRegularMessage(message);
-      }
+      // Default to streaming for text messages
+      await this.sendStreamingMessage(message);
     } catch (error) {
       console.error("Error sending message:", error);
       this.addMessage(
@@ -199,17 +234,17 @@ class RemoAIChat {
       if (result.success) {
         // Display the complete response
         this.currentStreamingMessage.querySelector(
-          ".message-text"
+          ".message-content"
         ).textContent = result.message;
         this.finalizeStreamingMessage();
       } else {
         this.currentStreamingMessage.querySelector(
-          ".message-text"
+          ".message-content"
         ).textContent = "Sorry, I encountered an error: " + result.error;
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      this.currentStreamingMessage.querySelector(".message-text").textContent =
+      this.currentStreamingMessage.querySelector(".message-content").textContent =
         "Sorry, I encountered an error. Please try again.";
     } finally {
       this.isStreaming = false;
@@ -256,9 +291,9 @@ class RemoAIChat {
 
   handleStreamChunk(chunk) {
     if (this.currentStreamingMessage) {
-      const messageText =
-        this.currentStreamingMessage.querySelector(".message-text");
-      messageText.textContent += chunk;
+      const messageContent =
+        this.currentStreamingMessage.querySelector(".message-content");
+      messageContent.textContent += chunk;
       this.scrollToBottom();
     }
   }
@@ -272,36 +307,16 @@ class RemoAIChat {
 
   addMessage(sender, content, isStreaming = false) {
     const messageDiv = document.createElement("div");
-    messageDiv.className = `message ${sender}-message new`;
-
-    if (isStreaming) {
-      messageDiv.classList.add("streaming");
-    }
-
-    const avatar = document.createElement("div");
-    avatar.className = "message-avatar";
-    avatar.innerHTML =
-      sender === "user"
-        ? '<i class="fas fa-user"></i>'
-        : '<i class="fas fa-robot"></i>';
+    messageDiv.className = `message ${sender}-message`;
 
     const messageContent = document.createElement("div");
     messageContent.className = "message-content";
+    messageContent.textContent = content;
 
-    const messageText = document.createElement("div");
-    messageText.className = "message-text";
-    messageText.textContent = content;
-
-    messageContent.appendChild(messageText);
-    messageDiv.appendChild(avatar);
     messageDiv.appendChild(messageContent);
 
     this.chatMessages.appendChild(messageDiv);
     this.scrollToBottom();
-
-    if (!isStreaming) {
-      this.addMessageTime(messageDiv);
-    }
 
     this.messageCount++;
     this.updateMessageCount();
@@ -317,12 +332,16 @@ class RemoAIChat {
   }
 
   showTypingIndicator() {
-    this.typingIndicator.style.display = "flex";
-    this.scrollToBottom();
+    if (this.typingIndicator) {
+      this.typingIndicator.style.display = "flex";
+      this.scrollToBottom();
+    }
   }
 
   hideTypingIndicator() {
-    this.typingIndicator.style.display = "none";
+    if (this.typingIndicator) {
+      this.typingIndicator.style.display = "none";
+    }
   }
 
   scrollToBottom() {
@@ -330,12 +349,18 @@ class RemoAIChat {
   }
 
   updateMessageCount() {
-    this.messageCountElement.textContent = `${this.messageCount} messages`;
+    if (this.messageCountElement) {
+      this.messageCountElement.textContent = `${this.messageCount} messages`;
+    }
   }
 
   updateStatus(status, text) {
-    this.statusDot.className = `status-dot ${status}`;
-    this.statusText.textContent = text;
+    if (this.statusDot) {
+      this.statusDot.className = `status-dot ${status}`;
+    }
+    if (this.statusText) {
+      this.statusText.textContent = text;
+    }
   }
 
   updateWelcomeTime() {
@@ -427,15 +452,30 @@ class RemoAIChat {
   }
 
   async toggleVoiceRecording() {
+    console.log("Voice button clicked, current recording state:", this.isRecording);
     if (this.isRecording) {
+      console.log("Stopping voice recording...");
       await this.stopVoiceRecording();
     } else {
+      console.log("Starting voice recording...");
       await this.startVoiceRecording();
     }
   }
 
   async startVoiceRecording() {
     try {
+      console.log("Requesting microphone access...");
+      
+      // Check if MediaRecorder is supported
+      if (!window.MediaRecorder) {
+        throw new Error("MediaRecorder API not supported in this browser");
+      }
+      
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("getUserMedia API not supported in this browser");
+      }
+      
       // Stop any current TTS when starting recording
       if (this.ttsEnabled) {
         await this.stopTTS();
@@ -450,25 +490,32 @@ class RemoAIChat {
           noiseSuppression: true,
         },
       });
+      
+      console.log("Microphone access granted, creating MediaRecorder...");
 
       this.mediaRecorder = new MediaRecorder(stream, {
         mimeType: "audio/webm;codecs=opus",
       });
+      
+      console.log("MediaRecorder created, setting up event handlers...");
 
       this.audioChunks = [];
 
       this.mediaRecorder.ondataavailable = (event) => {
+        console.log("Audio data available, size:", event.data.size);
         if (event.data.size > 0) {
           this.audioChunks.push(event.data);
         }
       };
 
       this.mediaRecorder.onstop = () => {
+        console.log("Recording stopped, processing audio...");
         this.processAudioRecording();
         stream.getTracks().forEach((track) => track.stop());
       };
 
       this.mediaRecorder.start();
+      console.log("Recording started successfully");
       this.isRecording = true;
       this.updateVoiceButton();
       this.showNotification("Recording... Click to stop", "info");
@@ -522,7 +569,7 @@ class RemoAIChat {
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
-      formData.append("stream", this.streamingEnabledInput.checked);
+      formData.append("stream", "true"); // Default to streaming enabled
 
       // Show typing indicator
       this.showTypingIndicator();
@@ -543,16 +590,12 @@ class RemoAIChat {
         // Add transcribed text as user message
         this.addMessage("user", result.transcribed_text);
 
-        // Add LLM response
-        if (this.streamingEnabledInput.checked) {
-          this.currentStreamingMessage = this.addMessage("assistant", "", true);
-          this.currentStreamingMessage.querySelector(
-            ".message-text"
-          ).textContent = result.llm_response;
-          this.finalizeStreamingMessage();
-        } else {
-          this.addMessage("assistant", result.llm_response);
-        }
+        // Add LLM response (always use streaming for voice messages)
+        this.currentStreamingMessage = this.addMessage("assistant", "", true);
+        this.currentStreamingMessage.querySelector(
+          ".message-content"
+        ).textContent = result.llm_response;
+        this.finalizeStreamingMessage();
       } else {
         this.addMessage(
           "assistant",
@@ -572,14 +615,11 @@ class RemoAIChat {
   }
 
   updateVoiceButton() {
-    const icon = this.voiceBtn.querySelector("i");
     if (this.isRecording) {
       this.voiceBtn.classList.add("recording");
-      icon.className = "fas fa-stop";
       this.voiceBtn.title = "Stop Recording";
     } else {
       this.voiceBtn.classList.remove("recording");
-      icon.className = "fas fa-microphone";
       this.voiceBtn.title = "Voice Input";
     }
   }
@@ -655,14 +695,11 @@ class RemoAIChat {
   }
 
   updateTTSButton() {
-    const icon = this.ttsBtn.querySelector("i");
     if (this.ttsEnabled) {
       this.ttsBtn.classList.add("active");
-      icon.className = "fas fa-volume-up";
       this.ttsBtn.title = "TTS Enabled - Click to disable";
     } else {
       this.ttsBtn.classList.remove("active");
-      icon.className = "fas fa-volume-mute";
       this.ttsBtn.title = "TTS Disabled - Click to enable";
     }
   }

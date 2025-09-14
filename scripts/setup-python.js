@@ -193,6 +193,13 @@ async function installESpeak() {
         const { spawn } = require('child_process');
         const path = require('path');
         
+        // Determine the Python executable path
+        const llmDir = path.join(__dirname, '..', 'llm');
+        const venvPath = path.join(llmDir, 'npu-chatbot-env');
+        const pythonExe = os.platform() === 'win32' 
+            ? path.join(venvPath, 'Scripts', 'python.exe')
+            : path.join(venvPath, 'bin', 'python');
+        
         const espeakScript = path.join(__dirname, '..', 'tts', 'install_espeak.py');
         
         return new Promise((resolve) => {
