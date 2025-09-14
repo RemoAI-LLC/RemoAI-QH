@@ -25,19 +25,19 @@ function log(message, color = 'reset') {
 }
 
 function logSuccess(message) {
-    log(`✅ ${message}`, 'green');
+    log(`[SUCCESS] ${message}`, 'green');
 }
 
 function logError(message) {
-    log(`❌ ${message}`, 'red');
+    log(`[ERROR] ${message}`, 'red');
 }
 
 function logWarning(message) {
-    log(`⚠️  ${message}`, 'yellow');
+    log(`[WARNING] ${message}`, 'yellow');
 }
 
 function logInfo(message) {
-    log(`ℹ️  ${message}`, 'blue');
+    log(`[INFO] ${message}`, 'blue');
 }
 
 async function checkBackendPrerequisites() {
@@ -90,7 +90,7 @@ function startBackendServer() {
     
     const apiScript = path.join(llmDir, 'src', 'unified_api.py');
     
-    log(`${colors.bright}${colors.cyan}🚀 Starting Remo AI Backend Server...${colors.reset}`);
+    log(`${colors.bright}${colors.cyan}Starting Remo AI Backend Server...${colors.reset}`);
     log(`${colors.blue}Backend URL: http://localhost:8000${colors.reset}`);
     log(`${colors.yellow}Press Ctrl+C to stop the backend server${colors.reset}\n`);
     
@@ -127,7 +127,7 @@ function startBackendServer() {
 }
 
 async function main() {
-    log(`${colors.bright}${colors.magenta}🤖 Remo AI Backend Server${colors.reset}`);
+    log(`${colors.bright}${colors.magenta}Remo AI Backend Server${colors.reset}`);
     log(`${colors.cyan}================================${colors.reset}`);
     
     const prerequisitesOk = await checkBackendPrerequisites();

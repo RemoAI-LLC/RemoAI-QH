@@ -25,23 +25,23 @@ function log(message, color = 'reset') {
 }
 
 function logStep(step, message) {
-    log(`\n${colors.cyan}🚀 Step ${step}: ${message}${colors.reset}`);
+    log(`\n${colors.cyan}Step ${step}: ${message}${colors.reset}`);
 }
 
 function logSuccess(message) {
-    log(`✅ ${message}`, 'green');
+    log(`[SUCCESS] ${message}`, 'green');
 }
 
 function logError(message) {
-    log(`❌ ${message}`, 'red');
+    log(`[ERROR] ${message}`, 'red');
 }
 
 function logWarning(message) {
-    log(`⚠️  ${message}`, 'yellow');
+    log(`[WARNING] ${message}`, 'yellow');
 }
 
 function logInfo(message) {
-    log(`ℹ️  ${message}`, 'blue');
+    log(`[INFO] ${message}`, 'blue');
 }
 
 async function checkPython() {
@@ -187,7 +187,7 @@ stream_timeout: 60`;
 }
 
 async function main() {
-    log(`${colors.bright}${colors.magenta}🤖 Remo AI - Python Environment Setup${colors.reset}`);
+    log(`${colors.bright}${colors.magenta}Remo AI - Python Environment Setup${colors.reset}`);
     log(`${colors.cyan}================================================${colors.reset}`);
     
     // Check prerequisites
@@ -214,7 +214,7 @@ async function main() {
     await createConfigFiles();
     
     logSuccess('Python environment setup completed successfully!');
-    log(`${colors.bright}${colors.green}🎉 You can now run 'npm start' to launch Remo AI!${colors.reset}`);
+    log(`${colors.bright}${colors.green}You can now run 'npm start' to launch Remo AI!${colors.reset}`);
     log(`${colors.cyan}================================================${colors.reset}`);
 }
 

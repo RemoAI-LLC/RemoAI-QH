@@ -361,16 +361,23 @@ def get_current_persona():
 
 if __name__ == '__main__':
     try:
-        print("🚀 Starting Remo AI Unified API Server...")
+        # Handle Windows encoding issues
+        import sys
+        if sys.platform == "win32":
+            import codecs
+            sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
+            sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+        
+        print("Starting Remo AI Unified API Server...")
         print("=" * 50)
         
         # Initialize services on startup
-        print("📡 Initializing services...")
+        print("Initializing services...")
         init_services()
         
-        print("✅ Services initialized")
-        print("🌐 Starting server on http://localhost:8000")
-        print("📋 Available endpoints:")
+        print("Services initialized")
+        print("Starting server on http://localhost:8000")
+        print("Available endpoints:")
         print("   - GET  /health - Health check")
         print("   - POST /chat - Send text message")
         print("   - POST /transcribe - Transcribe audio file")
@@ -383,6 +390,6 @@ if __name__ == '__main__':
         logger.info("Starting unified API server on port 8000")
         app.run(host='0.0.0.0', port=8000, debug=True)
     except Exception as e:
-        print(f"❌ Failed to start server: {e}")
+        print(f"Failed to start server: {e}")
         logger.error(f"Failed to start unified API server: {e}")
         sys.exit(1)
