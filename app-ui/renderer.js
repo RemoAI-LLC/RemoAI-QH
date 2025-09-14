@@ -9,11 +9,13 @@ class RemoAIChat {
     this.isRecording = false;
     this.mediaRecorder = null;
     this.audioChunks = [];
+    this.ttsEnabled = true; // TTS is enabled by default
 
     this.initializeElements();
     this.setupEventListeners();
     this.loadConfiguration();
     this.updateWelcomeTime();
+    this.initializeTTS();
   }
 
   initializeElements() {
@@ -43,6 +45,7 @@ class RemoAIChat {
 
     // Voice input elements
     this.voiceBtn = document.getElementById("voiceBtn");
+    this.ttsBtn = document.getElementById("ttsBtn");
   }
 
   setupEventListeners() {
@@ -64,6 +67,9 @@ class RemoAIChat {
 
     // Voice input
     this.voiceBtn.addEventListener("click", () => this.toggleVoiceRecording());
+    
+    // TTS toggle
+    this.ttsBtn.addEventListener("click", () => this.toggleTTS());
 
     // Modal backdrop click
     this.settingsModal.addEventListener("click", (e) => {
@@ -430,6 +436,11 @@ class RemoAIChat {
 
   async startVoiceRecording() {
     try {
+      // Stop any current TTS when starting recording
+      if (this.ttsEnabled) {
+        await this.stopTTS();
+      }
+
       // Check if microphone access is available
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -570,6 +581,89 @@ class RemoAIChat {
       this.voiceBtn.classList.remove("recording");
       icon.className = "fas fa-microphone";
       this.voiceBtn.title = "Voice Input";
+    }
+  }
+
+  async toggleTTS() {
+    try {
+      const response = await fetch("http://localhost:8000/tts/toggle", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          enabled: !this.ttsEnabled
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        this.ttsEnabled = result.enabled;
+        this.updateTTSButton();
+        this.showNotification(
+          result.enabled ? "TTS enabled" : "TTS disabled",
+          "success"
+        );
+      } else {
+        this.showNotification("Error toggling TTS", "error");
+      }
+    } catch (error) {
+      console.error("Error toggling TTS:", error);
+      this.showNotification("Error toggling TTS", "error");
+    }
+  }
+
+  async stopTTS() {
+    try {
+      const response = await fetch("http://localhost:8000/tts/stop", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        console.log("TTS stopped successfully");
+      }
+    } catch (error) {
+      console.error("Error stopping TTS:", error);
+    }
+  }
+
+  async initializeTTS() {
+    try {
+      const response = await fetch("http://localhost:8000/tts/status");
+      if (response.ok) {
+        const result = await response.json();
+        this.ttsEnabled = result.status.enabled;
+        this.updateTTSButton();
+      }
+    } catch (error) {
+      console.error("Error initializing TTS:", error);
+      // Keep default state (enabled)
+    }
+  }
+
+  updateTTSButton() {
+    const icon = this.ttsBtn.querySelector("i");
+    if (this.ttsEnabled) {
+      this.ttsBtn.classList.add("active");
+      icon.className = "fas fa-volume-up";
+      this.ttsBtn.title = "TTS Enabled - Click to disable";
+    } else {
+      this.ttsBtn.classList.remove("active");
+      icon.className = "fas fa-volume-mute";
+      this.ttsBtn.title = "TTS Disabled - Click to enable";
     }
   }
 

@@ -394,6 +394,17 @@ body {
   color: white;
 }
 
+.btn-small.active {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.btn-small.active:hover {
+  background: #059669;
+  color: white;
+}
+
 @keyframes pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
