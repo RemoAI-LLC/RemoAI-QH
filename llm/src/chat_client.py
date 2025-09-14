@@ -6,6 +6,7 @@ import yaml
 import json
 import sys
 from typing import Dict, Any, Generator, Optional
+from persona import PersonaManager
 
 class NPUChatClient:
     def __init__(self, config_path: str = 'config.yaml'):
@@ -16,6 +17,8 @@ class NPUChatClient:
             'Content-Type': 'application/json'
         }
         self.conversation_history = []
+        self.persona_manager = PersonaManager()
+        self._initialize_conversation()
     
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load configuration from YAML file"""
@@ -28,6 +31,32 @@ class NPUChatClient:
         except yaml.YAMLError as e:
             print(f"Error parsing {config_path}: {e}")
             sys.exit(1)
+    
+    def _initialize_conversation(self):
+        """Initialize conversation with persona system prompt"""
+        system_prompt = self.persona_manager.get_system_prompt()
+        if system_prompt and not self.conversation_history:
+            self.conversation_history.append({
+                "role": "system", 
+                "content": system_prompt
+            })
+    
+    def set_persona(self, persona_name: str) -> bool:
+        """Change the current persona"""
+        if self.persona_manager.set_persona(persona_name):
+            # Clear history and reinitialize with new persona
+            self.conversation_history = []
+            self._initialize_conversation()
+            return True
+        return False
+    
+    def get_current_persona(self) -> str:
+        """Get the current persona name"""
+        return self.persona_manager.current_persona
+    
+    def get_available_personas(self) -> Dict[str, str]:
+        """Get available personas"""
+        return self.persona_manager.get_available_personas()
     
     def send_message(self, message: str, stream: bool = None) -> Optional[Generator[str, None, None]]:
         """Send a message to the AnythingLLM API"""

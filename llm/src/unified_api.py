@@ -36,18 +36,23 @@ def init_services():
     global chat_client, whisper_service
     
     try:
-        # Initialize chat client
-        chat_client = NPUChatClient('config.yaml')
-        logger.info("Chat client initialized successfully")
-        
-        # Initialize whisper service
+        # Initialize whisper service first (doesn't require external server)
         whisper_service = WhisperService("base")
         whisper_service.load_model()
         logger.info("Whisper service initialized successfully")
         
+        # Try to initialize chat client (may fail if AnythingLLM is not running)
+        try:
+            chat_client = NPUChatClient('config.yaml')
+            logger.info("Chat client initialized successfully")
+        except Exception as chat_error:
+            logger.warning(f"Chat client initialization failed (AnythingLLM may not be running): {chat_error}")
+            chat_client = None
+        
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
-        raise
+        # Don't raise the exception, allow the server to start with limited functionality
+        whisper_service = None
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -79,6 +84,9 @@ def chat():
         
         if chat_client is None:
             init_services()
+        
+        if chat_client is None:
+            return jsonify({"error": "Chat service not available. Please ensure AnythingLLM is running."}), 503
         
         if stream:
             # Stream the response
@@ -202,6 +210,12 @@ def speak_and_chat():
         if chat_client is None or whisper_service is None:
             init_services()
         
+        if chat_client is None:
+            return jsonify({"error": "Chat service not available. Please ensure AnythingLLM is running."}), 503
+        
+        if whisper_service is None:
+            return jsonify({"error": "Whisper service not available."}), 503
+        
         # Save the uploaded file temporarily
         filename = secure_filename(audio_file.filename)
         with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{filename}") as temp_file:
@@ -276,12 +290,99 @@ def get_history():
         logger.error(f"Error getting history: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/personas', methods=['GET'])
+def get_personas():
+    """Get available personas."""
+    try:
+        if chat_client is None:
+            init_services()
+        
+        if chat_client is None:
+            return jsonify({"error": "Chat service not available"}), 503
+        
+        personas = chat_client.get_available_personas()
+        current_persona = chat_client.get_current_persona()
+        
+        return jsonify({
+            "success": True,
+            "personas": personas,
+            "current_persona": current_persona
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting personas: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/personas/<persona_name>', methods=['POST'])
+def set_persona(persona_name):
+    """Set the current persona."""
+    try:
+        if chat_client is None:
+            init_services()
+        
+        if chat_client is None:
+            return jsonify({"error": "Chat service not available"}), 503
+        
+        if chat_client.set_persona(persona_name):
+            return jsonify({
+                "success": True,
+                "message": f"Persona changed to {persona_name}",
+                "current_persona": persona_name
+            })
+        else:
+            return jsonify({"error": f"Persona '{persona_name}' not found"}), 404
+    
+    except Exception as e:
+        logger.error(f"Error setting persona: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/personas/current', methods=['GET'])
+def get_current_persona():
+    """Get the current persona."""
+    try:
+        if chat_client is None:
+            init_services()
+        
+        if chat_client is None:
+            return jsonify({"error": "Chat service not available"}), 503
+        
+        current_persona = chat_client.get_current_persona()
+        persona_info = chat_client.persona_manager.get_current_persona()
+        
+        return jsonify({
+            "success": True,
+            "current_persona": current_persona,
+            "persona_info": persona_info
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting current persona: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     try:
+        print("🚀 Starting Remo AI Unified API Server...")
+        print("=" * 50)
+        
         # Initialize services on startup
+        print("📡 Initializing services...")
         init_services()
+        
+        print("✅ Services initialized")
+        print("🌐 Starting server on http://localhost:8000")
+        print("📋 Available endpoints:")
+        print("   - GET  /health - Health check")
+        print("   - POST /chat - Send text message")
+        print("   - POST /transcribe - Transcribe audio file")
+        print("   - POST /speak-and-chat - Complete voice workflow")
+        print("   - GET  /personas - Get available personas")
+        print("   - POST /personas/<name> - Set persona")
+        print("   - GET  /personas/current - Get current persona")
+        print("=" * 50)
+        
         logger.info("Starting unified API server on port 8000")
         app.run(host='0.0.0.0', port=8000, debug=True)
     except Exception as e:
+        print(f"❌ Failed to start server: {e}")
         logger.error(f"Failed to start unified API server: {e}")
         sys.exit(1)
