@@ -26,7 +26,7 @@
     "reset": "npm run clean && npm install",
     "persona:test": "cd llm && python test_personas.py",
     "persona:demo": "start app-ui/persona-demo.html",
-    "tts:test": "python test_tts_integration.py",
+    "tts:test": "python tts/test_tts_integration.py",
     "tts:install": "python tts/install_espeak.py"
   },
   "keywords": [

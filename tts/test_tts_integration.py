@@ -9,7 +9,7 @@ import time
 import json
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tts'))
+# No need to add tts to path since we're already in the tts folder
 
 def test_tts_integration():
     """Test complete TTS integration"""
