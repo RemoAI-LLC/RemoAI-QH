@@ -1,0 +1,63 @@
+{
+  "name": "remo-ai-qh",
+  "version": "1.0.0",
+  "description": "Remo AI - Privacy-First Personal AI Assistant with NPU Acceleration and Voice Integration",
+  "main": "app-ui/main.js",
+  "scripts": {
+    "install": "npm run install:all",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "install:frontend": "cd app-ui && npm install",
+    "install:backend": "npm run setup:python",
+    "setup:python": "node scripts/setup-python.js",
+    "start": "npm run start:all",
+    "start:all": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "node scripts/start-backend.js",
+    "start:frontend": "cd app-ui && npm start",
+    "start:backend-only": "node scripts/start-backend.js",
+    "start:frontend-only": "cd app-ui && npm start",
+    "dev": "npm run start:all",
+    "build": "cd app-ui && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd llm && python test_personas.py",
+    "test:frontend": "cd app-ui && npm test",
+    "clean": "npm run clean:frontend && npm run clean:backend",
+    "clean:frontend": "cd app-ui && rmdir /s /q node_modules 2>nul || rm -rf node_modules",
+    "clean:backend": "cd llm && rmdir /s /q npu-chatbot-env 2>nul || rm -rf npu-chatbot-env",
+    "reset": "npm run clean && npm install",
+    "persona:test": "cd llm && python test_personas.py",
+    "persona:demo": "start app-ui/persona-demo.html"
+  },
+  "keywords": [
+    "ai",
+    "chatbot",
+    "npu",
+    "snapdragon",
+    "privacy",
+    "electron",
+    "whisper",
+    "voice",
+    "persona"
+  ],
+  "author": "Suhas Dasari <suhas.dasari194@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-spawn": "^7.0.6",
+    "fs-extra": "^11.3.1"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RemoAI-LLC/RemoAI-QH.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RemoAI-LLC/RemoAI-QH/issues"
+  },
+  "homepage": "https://github.com/RemoAI-LLC/RemoAI-QH#readme"
+}
