@@ -27,7 +27,7 @@
     "persona:test": "cd llm && python test_personas.py",
     "persona:demo": "start app-ui/persona-demo.html",
     "tts:test": "python test_tts_integration.py",
-    "tts:install": "python espeak/install_espeak.py"
+    "tts:install": "python tts/install_espeak.py"
   },
   "keywords": [
     "ai",

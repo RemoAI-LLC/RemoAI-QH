@@ -193,7 +193,7 @@ async function installESpeak() {
         const { spawn } = require('child_process');
         const path = require('path');
         
-        const espeakScript = path.join(__dirname, '..', 'espeak', 'install_espeak.py');
+        const espeakScript = path.join(__dirname, '..', 'tts', 'install_espeak.py');
         
         return new Promise((resolve) => {
             const installProcess = spawn(pythonExe, [espeakScript], {

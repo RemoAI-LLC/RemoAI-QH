@@ -7,6 +7,9 @@ Tests the complete TTS functionality including persona-specific voices
 import requests
 import time
 import json
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tts'))
 
 def test_tts_integration():
     """Test complete TTS integration"""

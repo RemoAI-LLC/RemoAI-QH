@@ -23,7 +23,7 @@ from audio_utils import convert_audio_to_wav, convert_wav_to_base64
 # Import TTS functionality
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'espeak'))
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'tts'))
 from persona_tts import PersonaTTSManager
 
 # Set up logging
@@ -272,6 +272,15 @@ def speak_and_chat():
                     response_chunks.append(chunk)
                 
                 full_response = ''.join(response_chunks)
+                
+                # Step 3: Speak the response if TTS is available
+                if tts_manager is not None:
+                    try:
+                        current_persona = chat_client.get_current_persona() if chat_client else "remo"
+                        tts_manager.speak_persona_response_async(full_response, current_persona)
+                    except Exception as tts_error:
+                        logger.warning(f"TTS error in speak-and-chat: {tts_error}")
+                
                 return jsonify({
                     "success": True,
                     "transcribed_text": transcribed_text,
@@ -281,6 +290,15 @@ def speak_and_chat():
             else:
                 # Get complete response
                 llm_response = chat_client.send_message(transcribed_text, False)
+                
+                # Step 3: Speak the response if TTS is available
+                if tts_manager is not None:
+                    try:
+                        current_persona = chat_client.get_current_persona() if chat_client else "remo"
+                        tts_manager.speak_persona_response_async(llm_response, current_persona)
+                    except Exception as tts_error:
+                        logger.warning(f"TTS error in speak-and-chat: {tts_error}")
+                
                 return jsonify({
                     "success": True,
                     "transcribed_text": transcribed_text,
