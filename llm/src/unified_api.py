@@ -496,6 +496,40 @@ def tts_stop():
         logger.error(f"Error stopping TTS: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/tts/toggle', methods=['POST'])
+def tts_toggle():
+    """Toggle TTS on/off"""
+    try:
+        if tts_manager is None:
+            return jsonify({"error": "TTS service not available"}), 503
+        
+        data = request.get_json()
+        enabled = data.get('enabled', None)
+        
+        if enabled is None:
+            # Toggle current state
+            tts_manager.enabled = not tts_manager.enabled
+        else:
+            # Set specific state
+            tts_manager.enabled = bool(enabled)
+        
+        if tts_manager.enabled:
+            tts_manager.enable()
+            message = "TTS enabled"
+        else:
+            tts_manager.disable()
+            message = "TTS disabled"
+        
+        return jsonify({
+            "success": True,
+            "message": message,
+            "enabled": tts_manager.enabled
+        })
+    
+    except Exception as e:
+        logger.error(f"Error toggling TTS: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/tts/set-persona', methods=['POST'])
 def tts_set_persona():
     """Set TTS voice for a specific persona"""
@@ -621,6 +655,7 @@ if __name__ == '__main__':
         print("   - POST /tts/speak - Speak text with TTS")
         print("   - POST /tts/speak-async - Speak text asynchronously")
         print("   - POST /tts/stop - Stop current speech")
+        print("   - POST /tts/toggle - Toggle TTS on/off")
         print("   - GET  /tts/status - Get TTS service status")
         print("=" * 50)
         
